@@ -3,11 +3,15 @@ IDENTITY := Deft Dev
 # Sign with the stable local identity when it exists (`make cert`), else ad hoc.
 SIGN ?= $(shell security find-certificate -c "$(IDENTITY)" >/dev/null 2>&1 && echo "$(IDENTITY)" || echo -)
 
+# Universal build: make app ARCH="--arch arm64 --arch x86_64" (needs Xcode, not just Command Line Tools).
+ARCH ?=
+
 app:
-	swift build -c release
-	rm -rf "$(APP)" && mkdir -p "$(APP)/Contents/MacOS"
-	cp .build/release/Deft "$(APP)/Contents/MacOS/"
+	swift build -c release $(ARCH)
+	rm -rf "$(APP)" && mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
+	cp "$$(swift build -c release $(ARCH) --show-bin-path)/Deft" "$(APP)/Contents/MacOS/"
 	cp Info.plist "$(APP)/Contents/"
+	cp Resources/AppIcon.icns "$(APP)/Contents/Resources/"
 	codesign --force --sign "$(SIGN)" "$(APP)"
 
 # One-time: self-signed code-signing identity in the login keychain. macOS ties the Accessibility

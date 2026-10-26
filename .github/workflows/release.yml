@@ -1,0 +1,20 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+      - run: make test
+      # ponytail: ad-hoc signed, not notarized: Gatekeeper asks once, and Accessibility must be re-granted after each update.
+      # Developer ID signing + notarization fixes both.
+      - run: plutil -replace CFBundleShortVersionString -string "${GITHUB_REF_NAME#v}" Info.plist
+      - run: make app SIGN=- ARCH="--arch arm64 --arch x86_64"
+      - run: ditto -c -k --keepParent build/Deft.app Deft.zip
+      - run: gh release create "$GITHUB_REF_NAME" Deft.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
