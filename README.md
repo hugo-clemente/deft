@@ -18,7 +18,8 @@ Hold a modifier combo, see your keyboard as an app launcher, press a key.
 ## Install
 
 ```sh
-brew install --cask hugo-clemente/tap/deft
+brew tap hugo-clemente/tap
+brew install --cask deft
 ```
 
 Or download `Deft.zip` from [Releases](https://github.com/hugo-clemente/deft/releases).
