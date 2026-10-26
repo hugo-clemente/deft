@@ -1,12 +1,12 @@
-APP := build/App Selector.app
-IDENTITY := App Selector Dev
+APP := build/Deft.app
+IDENTITY := Deft Dev
 # Sign with the stable local identity when it exists (`make cert`), else ad hoc.
 SIGN ?= $(shell security find-certificate -c "$(IDENTITY)" >/dev/null 2>&1 && echo "$(IDENTITY)" || echo -)
 
 app:
 	swift build -c release
 	rm -rf "$(APP)" && mkdir -p "$(APP)/Contents/MacOS"
-	cp .build/release/AppSelector "$(APP)/Contents/MacOS/"
+	cp .build/release/Deft "$(APP)/Contents/MacOS/"
 	cp Info.plist "$(APP)/Contents/"
 	codesign --force --sign "$(SIGN)" "$(APP)"
 
@@ -23,6 +23,6 @@ cert:
 	status=$$?; rm -rf $$tmp; exit $$status
 
 test:
-	swift run AppSelector --self-test
+	swift run Deft --self-test
 
 .PHONY: app cert test

@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.appselector.AppSelector</string>
+	<string>io.github.hugo-clemente.Deft</string>
 	<key>CFBundleName</key>
-	<string>App Selector</string>
+	<string>Deft</string>
 	<key>CFBundleExecutable</key>
-	<string>AppSelector</string>
+	<string>Deft</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

@@ -16,9 +16,9 @@ import SwiftUI
         let menu = NSMenu()
         menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit App Selector", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Deft", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem?.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "App Selector")
+        statusItem?.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Deft")
         statusItem?.menu = menu
 
         if Store.shared.config.keys.isEmpty { openSettings() }
@@ -40,7 +40,7 @@ import SwiftUI
     private func showSettings() {
         if settings == nil {
             settings = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
-            settings?.title = "App Selector Settings"
+            settings?.title = "Deft Settings"
             settings?.isReleasedWhenClosed = false
             settings?.center()
         }

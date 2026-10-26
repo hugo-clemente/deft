@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "AppSelector",
+    name: "Deft",
     platforms: [.macOS(.v14)],
-    targets: [.executableTarget(name: "AppSelector")]
+    targets: [.executableTarget(name: "Deft")]
 )

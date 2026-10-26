@@ -106,7 +106,7 @@ struct Config: Codable, Equatable {
 
 @MainActor @Observable final class Store {
     static let shared = Store()
-    private static let file = URL.applicationSupportDirectory.appending(path: "AppSelector/config.json")
+    private static let file = URL.applicationSupportDirectory.appending(path: "Deft/config.json")
 
     var config: Config { didSet { save() } }
 
