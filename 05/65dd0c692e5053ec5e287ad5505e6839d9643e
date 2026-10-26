@@ -1,0 +1,19 @@
+README.md
+  s_58976c9af4f40c::t_5def0c33591e6a 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0565dd0c692e5053ec5e287ad5505e6839d9643e",
+  "prompts": {},
+  "sessions": {
+    "s_58976c9af4f40c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "716e6f49-b677-45bc-a234-01ae1e6be2ce",
+        "model": "unknown"
+      },
+      "human_author": "Hugo CLEMENTE <20091960+hugo-clemente@users.noreply.github.com>"
+    }
+  }
+}
