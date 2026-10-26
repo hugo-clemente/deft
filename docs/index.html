@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deft: give every Mac app its own key</title>
+<meta name="description" content="Deft is a free, open source launcher for macOS. Hold ⌃⌥⌘ to see your keyboard with an app on each key, then press the key to bring that app forward.">
+<link rel="canonical" href="https://hugo-clemente.github.io/deft/">
+<link rel="icon" type="image/png" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hugo-clemente.github.io/deft/">
+<meta property="og:title" content="Deft: give every Mac app its own key">
+<meta property="og:description" content="Hold ⌃⌥⌘ to see your keyboard with an app on each key. Press one and the app comes forward. Free and open source.">
+<meta property="og:image" content="https://hugo-clemente.github.io/deft/overlay-light.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f5f5f7; --border: #e3e3e6; --text: #000000; --muted: #5c5c60;
+    --hero-from: #000000; --hero-to: #666666; --nav: rgba(255, 255, 255, 0.72); --panel: rgba(255, 255, 255, 0.92);
+    --accent: #000000; --on-accent: #ffffff;
+    /* Demo desktop and the Deft overlay */
+    --desk: #dde2ea; --menubar: rgba(255, 255, 255, 0.6); --win: #ffffff; --win-border: rgba(0, 0, 0, 0.1);
+    --glass: rgba(246, 246, 248, 0.55); --glass-edge: rgba(255, 255, 255, 0.75);
+    --ui: rgba(0, 0, 0, 0.85); --ui-dim: rgba(0, 0, 0, 0.16); --ui-fill: rgba(0, 0, 0, 0.05); --ui-muted: rgba(0, 0, 0, 0.45);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --surface: #181818; --border: #272727; --text: #ffffff; --muted: #9b9b9b;
+      --hero-from: #ffffff; --hero-to: #9b9b9b; --nav: rgba(31, 31, 31, 0.72); --panel: rgba(0, 0, 0, 0.92);
+      --accent: #ffffff; --on-accent: #000000;
+      --desk: #131209; --menubar: rgba(0, 0, 0, 0.45); --win: #272727; --win-border: rgba(255, 255, 255, 0.08);
+      --glass: rgba(31, 31, 31, 0.55); --glass-edge: rgba(255, 255, 255, 0.14);
+      --ui: rgba(255, 255, 255, 0.9); --ui-dim: rgba(255, 255, 255, 0.18); --ui-fill: rgba(255, 255, 255, 0.06); --ui-muted: rgba(255, 255, 255, 0.5);
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Geist", system-ui, sans-serif; font-size: 16px; line-height: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+  p { margin: 0; text-wrap: pretty; }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; height: auto; }
+  code, pre, .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 4px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .skip { position: absolute; left: 16px; top: -48px; padding: 8px 12px; background: var(--accent); color: var(--on-accent); border-radius: 8px; z-index: 30; }
+  .skip:focus { top: 16px; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 96px 0; }
+  .eyebrow { font-size: 14px; line-height: 20px; font-weight: 500; color: var(--muted); margin-bottom: 12px; }
+  h2 { font-size: 36px; line-height: 40px; max-width: 680px; }
+  .lead { font-size: 18px; line-height: 28px; color: var(--muted); max-width: 680px; margin-top: 16px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 0; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent); font: 600 16px/24px "Geist", system-ui, sans-serif;
+    text-decoration: none; cursor: pointer; white-space: nowrap;
+    transition: transform 300ms var(--ease), opacity 300ms var(--ease);
+  }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn:active { transform: scale(0.98); }
+  .btn.small { font-size: 14px; line-height: 20px; border-radius: 9999px; padding: 8px 12px; }
+  .link { color: var(--muted); text-decoration: none; transition: color 300ms var(--ease); }
+  .link:hover { color: var(--text); }
+
+  /* Nav */
+  .nav {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: flex; align-items: center; gap: 24px; padding: 8px 8px 8px 16px;
+    background: var(--nav); backdrop-filter: blur(16px) saturate(1.6); -webkit-backdrop-filter: blur(16px) saturate(1.6);
+    border: 1px solid var(--border); border-radius: 9999px; white-space: nowrap;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; text-decoration: none; }
+  .brand img { width: 24px; height: 24px; }
+  .nav .links { display: flex; gap: 24px; font-size: 14px; line-height: 20px; }
+  .nav .links a[aria-current="true"] { color: var(--text); }
+  .toggle { display: none; width: 40px; height: 40px; border: 0; background: none; color: var(--text); cursor: pointer; position: relative; border-radius: 9999px; }
+  .toggle span { position: absolute; left: 12px; top: 19px; width: 16px; height: 2px; background: currentColor; border-radius: 2px; transition: transform 500ms var(--ease); }
+  .toggle span:first-child { transform: translateY(-4px); }
+  .toggle span:last-child { transform: translateY(4px); }
+  .toggle[aria-expanded="true"] span:first-child { transform: rotate(45deg); }
+  .toggle[aria-expanded="true"] span:last-child { transform: rotate(-45deg); }
+  .menu {
+    position: fixed; inset: 0; z-index: 15; padding: 96px 24px 24px; display: flex; flex-direction: column; gap: 8px;
+    background: var(--panel); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    opacity: 0; pointer-events: none; transition: opacity 300ms var(--ease);
+  }
+  .menu.open { opacity: 1; pointer-events: auto; }
+  .menu a { font-size: 30px; line-height: 36px; font-weight: 600; text-decoration: none; padding: 12px 0; opacity: 0; transform: translateY(24px); transition: transform 500ms var(--ease), opacity 500ms var(--ease); }
+  .menu.open a { opacity: 1; transform: none; }
+
+  /* Hero */
+  .hero { padding: 96px 0 64px; margin-top: 32px; text-align: center; }
+  .hero h1 {
+    font-size: 60px; line-height: 1; letter-spacing: -0.02em; max-width: 680px; margin: 0 auto;
+    background: linear-gradient(90deg, var(--hero-from), var(--hero-to)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .lead { margin: 24px auto 0; font-size: 20px; line-height: 28px; }
+  .install { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 40px; }
+  .cmd {
+    display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 8px 8px 8px 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  }
+  .cmd code { min-width: 0; font-size: 14px; line-height: 20px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .cmd code { text-align: left; }
+  .cmd code span { display: block; }
+  .cmd code span::before { content: "$ "; color: var(--muted); }
+  .status { min-height: 20px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .proof { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .proof i { margin-right: 4px; }
+
+  /* Live demo: a recreation of the Deft overlay over a fake desktop */
+  .demo { margin: 64px auto 0; max-width: 1040px; text-align: left; }
+  .stage {
+    position: relative; aspect-ratio: 16 / 10; border-radius: 24px; overflow: hidden; background: var(--desk);
+    border: 1px solid var(--border); user-select: none; -webkit-user-select: none; cursor: pointer; touch-action: manipulation;
+  }
+  .menubar {
+    position: absolute; inset: 0 0 auto; height: 32px; z-index: 100001; display: flex; align-items: center; gap: 16px; padding: 0 16px;
+    font-size: 12px; line-height: 16px; background: var(--menubar); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .menubar b { font-weight: 600; }
+  .menubar .grow { flex: 1; }
+  .menubar span { color: var(--muted); }
+  .menubar .deft { color: var(--text); font-size: 16px; }
+  .win {
+    position: absolute; width: 54%; height: 62%; border-radius: 12px; overflow: hidden;
+    background: var(--win); border: 1px solid var(--win-border); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transition: opacity 300ms var(--ease), transform 300ms var(--ease), box-shadow 300ms var(--ease);
+  }
+  .win.front { box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28); }
+  .win.gone { opacity: 0; transform: scale(0.96); }
+  .win .bar { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-bottom: 1px solid var(--win-border); font-size: 12px; line-height: 16px; font-weight: 600; color: var(--muted); }
+  .win .bar i { width: 12px; height: 12px; border-radius: 9999px; background: var(--ui-dim); }
+  .win.front .bar { color: var(--text); }
+  .win.front .bar i:nth-child(1) { background: #ff5f57; }
+  .win.front .bar i:nth-child(2) { background: #febc2e; }
+  .win.front .bar i:nth-child(3) { background: #28c840; }
+  .win .bar b { flex: 1; text-align: center; margin-right: 48px; font-weight: 600; }
+  .win .body { padding: 16px; font-size: 12px; line-height: 16px; }
+  .win .url { padding: 4px 12px; border-radius: 9999px; background: var(--ui-fill); color: var(--muted); margin-bottom: 16px; }
+  .win .blk { height: 96px; border-radius: 8px; background: var(--c); margin-bottom: 12px; }
+  .win .ln { height: 8px; border-radius: 4px; background: var(--ui-dim); margin-top: 8px; }
+  .win .ln.short { width: 60%; }
+  .win .mail { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--win-border); }
+  .win .mail b { font-weight: 600; min-width: 96px; }
+  .win .mail span { flex: 1; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .win.term { background: #1d1d1f; }
+  .win.term .bar { border-color: rgba(255, 255, 255, 0.08); color: #9b9b9b; }
+  .win.term.front .bar { color: #ffffff; }
+  .win pre { margin: 0; color: #e5e5e5; font-size: 12px; line-height: 16px; white-space: pre; }
+  .win .notes div { padding: 8px 0; border-bottom: 1px solid var(--win-border); }
+  .win .albums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .win .albums i { aspect-ratio: 1; border-radius: 8px; }
+  .win .gen { display: grid; place-items: center; gap: 8px; padding-top: 24px; }
+
+  .ov {
+    position: absolute; left: 50%; top: 54%; z-index: 100000; width: 808px; padding: 24px 48px;
+    transform: translate(-50%, -50%) scale(var(--s, 1)); display: none;
+    border-radius: 24px; background: var(--glass); border: 1px solid var(--glass-edge);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3), inset 0 1px 0 var(--glass-edge);
+    backdrop-filter: blur(24px) saturate(1.8); -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  }
+  .ov.on { display: block; } /* no entrance animation, same as the app */
+  .board { display: flex; flex-direction: column; gap: 8px; transform: perspective(1000px) rotateX(25deg); transform-origin: 50% 60%; }
+  .kr { display: flex; gap: 8px; }
+  .kr:nth-child(2) { padding-left: 32px; }
+  .kr:nth-child(3) { padding-left: 48px; }
+  .kr:nth-child(4) { padding-left: 80px; }
+  .combo { margin-top: 16px; text-align: center; font-size: 14px; line-height: 20px; letter-spacing: 0.2em; color: var(--ui-muted); }
+  .kc {
+    position: relative; flex: none; width: 56px; height: 56px; border-radius: 6px; border: 1.5px solid var(--ui-dim);
+    box-shadow: 0 2px 1px rgba(0, 0, 0, 0.12);
+    transition: transform 200ms var(--ease), box-shadow 200ms var(--ease);
+  }
+  .kc.on { border-color: var(--ui); background: var(--ui-fill); box-shadow: 0 2px 1px rgba(0, 0, 0, 0.3); }
+  .kc.down { transform: translateY(2px); box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+  .kc .lbl { position: absolute; top: 4px; left: 8px; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ui-muted); }
+  .kc.on .lbl { color: var(--ui); }
+  .ico { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--c); color: var(--fg, #ffffff); font-size: 16px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+  .kc .ico { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -40%); }
+  .ico.big { width: 48px; height: 48px; border-radius: 12px; font-size: 30px; }
+  .kc .dot { position: absolute; left: 50%; bottom: 8px; width: 4px; height: 4px; margin-left: -2px; border-radius: 9999px; background: var(--ui); opacity: 0; }
+  .kc.run .dot { opacity: 1; }
+  .kc .bump { position: absolute; left: 50%; bottom: 4px; width: 12px; height: 2px; margin-left: -6px; border-radius: 9999px; background: var(--ui-muted); }
+  .kc .ext { position: absolute; top: 4px; right: 4px; font-size: 12px; color: var(--ui-muted); }
+
+  .stage.instant, .stage.instant * { transition: none !important; } /* replaying earlier steps when jumping */
+  .hud { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
+  .hud .keys { display: flex; align-items: center; gap: 8px; }
+  .hud .key { transition: background-color 200ms var(--ease), color 200ms var(--ease), transform 200ms var(--ease); }
+  .hud .key.held { background: var(--text); color: var(--bg); transform: translateY(2px); box-shadow: none; }
+  .controls { display: flex; align-items: center; gap: 8px; }
+  .ctl {
+    display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 9999px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 20px; cursor: pointer;
+    transition: background-color 300ms var(--ease), transform 300ms var(--ease);
+  }
+  .ctl:hover { background: var(--surface); }
+  .ctl:active { transform: scale(0.98); }
+  .dots { display: flex; margin-left: 8px; }
+  .dots button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 9999px; background: none; cursor: pointer; }
+  .dots button::after { content: ""; width: 8px; height: 8px; border-radius: 9999px; background: var(--border); transition: background-color 300ms var(--ease), transform 300ms var(--ease); }
+  .dots button:hover::after { background: var(--muted); }
+  .dots button[aria-current="step"]::after { background: var(--text); transform: scale(1.25); }
+  .caption { margin-top: 16px; min-height: 28px; font-size: 18px; line-height: 28px; }
+  .caption span { color: var(--muted); margin-right: 8px; }
+  .hint { margin-top: 8px; font-size: 14px; line-height: 20px; color: var(--muted); }
+  .hint .touch { display: none; }
+  @media (hover: none) { .hint .mouse { display: none; } .hint .touch { display: inline; } }
+
+  /* Compare */
+  .compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .card h3 { font-size: 18px; line-height: 28px; }
+  .card p { color: var(--muted); margin-top: 8px; }
+  .card .keys { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 24px; min-height: 40px; align-items: center; }
+  .card.deft { background: var(--bg); border-color: var(--text); }
+
+  /* Keycaps, drawn like the Deft overlay */
+  .key {
+    display: inline-grid; place-items: center; min-width: 40px; height: 40px; padding: 0 8px;
+    border: 1.5px solid var(--text); border-radius: 6px; font-size: 16px; line-height: 24px; font-weight: 600;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  }
+  .key.dim { border-color: var(--border); color: var(--muted); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12); }
+  .plus { color: var(--muted); }
+
+  /* Benefits */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+  .grid .card > i { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); font-size: 20px; margin-bottom: 16px; }
+
+  /* Tagline reveal */
+  .tagline p { font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; max-width: 680px; }
+  .tagline .line { display: block; }
+  .tagline .line + .line { margin-top: 12px; }
+  .js .tagline .w { opacity: 0.3; transition: opacity 500ms var(--ease); }
+  .js .tagline .w.lit { opacity: 1; }
+
+  /* Steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; counter-reset: step; }
+  .steps .card h3::before { counter-increment: step; content: counter(step); display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: 8px; border-radius: 9999px; background: var(--accent); color: var(--on-accent); font-size: 14px; line-height: 20px; }
+
+  /* Open source */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 48px; }
+  .stat strong { display: block; font-size: 36px; line-height: 40px; font-weight: 600; }
+  .stat span { color: var(--muted); }
+  .real { margin: 64px 0 0; }
+  .real img { width: 100%; max-width: 960px; }
+  .real figcaption { margin-top: 12px; font-size: 14px; line-height: 20px; color: var(--muted); }
+
+  /* FAQ */
+  .faq { margin-top: 48px; max-width: 800px; border-top: 1px solid var(--border); }
+  .faq details { border-bottom: 1px solid var(--border); }
+  .faq summary { display: flex; justify-content: space-between; gap: 16px; padding: 24px 0; font-size: 18px; line-height: 28px; font-weight: 500; cursor: pointer; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary i { transition: transform 500ms var(--ease); color: var(--muted); }
+  .faq details[open] summary i { transform: rotate(45deg); }
+  .faq details p { padding: 0 0 24px; color: var(--muted); max-width: 680px; }
+  .faq code { font-size: 14px; line-height: 20px; color: var(--text); }
+
+  /* Final CTA */
+  .final { text-align: center; }
+  .final h2, .final .lead { margin-left: auto; margin-right: auto; }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 0; font-size: 14px; line-height: 20px; color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 24px; justify-content: space-between; align-items: center; }
+  footer nav { display: flex; flex-wrap: wrap; gap: 24px; }
+
+  /* Scroll reveal */
+  .js .reveal { opacity: 0; transform: translateY(32px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
+  .js .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 860px) {
+    section { padding: 64px 0; }
+    .wrap { padding: 0 16px; }
+    .nav .links, .nav .btn { display: none; }
+    .nav { gap: 16px; padding: 4px 4px 4px 16px; }
+    .toggle { display: block; }
+    .hero { padding: 96px 0 48px; margin-top: 0; }
+    .hero h1 { font-size: 36px; line-height: 40px; }
+    .hero .lead { font-size: 18px; line-height: 28px; }
+    .install { align-items: stretch; }
+    .cmd { flex-direction: column; align-items: stretch; padding: 8px; }
+    .cmd code { padding: 8px; font-size: 12px; line-height: 16px; }
+    .cmd .btn { justify-content: center; }
+    .demo { margin-top: 48px; }
+    .stage { aspect-ratio: 4 / 3; border-radius: 16px; }
+    .menubar span { display: none; }
+    .win { width: 72%; }
+    h2 { font-size: 30px; line-height: 36px; }
+    .compare, .grid, .steps { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .tagline p { font-size: 30px; line-height: 36px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .js .reveal, .menu a, .win.gone, .kc.down, .hud .key.held { transform: none; }
+    .toggle span, .faq summary i { transition: none; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="#top"><img src="icon.png" alt="">Deft</a>
+  <div class="links">
+    <a class="link" href="#how">How it works</a>
+    <a class="link" href="#faq">FAQ</a>
+    <a class="link" href="https://github.com/hugo-clemente/deft">GitHub</a>
+  </div>
+  <a class="btn small" href="#install">Install</a>
+  <button class="toggle" aria-label="Menu" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+</nav>
+<div class="menu" id="menu">
+  <a href="#how">How it works</a>
+  <a href="#faq">FAQ</a>
+  <a href="https://github.com/hugo-clemente/deft">GitHub</a>
+  <a href="#install">Install</a>
+</div>
+
+<main id="main">
+  <header class="hero" id="top">
+    <div class="wrap">
+      <h1>Give every app<br> its own key</h1>
+      <p class="lead">Hold ⌃⌥⌘ and Deft shows your keyboard with an app on each key. Press the key and the app comes forward, usually in about 30 ms.</p>
+      <div class="install">
+        <div class="cmd">
+          <code><span>brew tap hugo-clemente/tap</span><span>brew trust --cask hugo-clemente/tap/deft</span><span>brew install --cask deft</span></code>
+          <button class="btn" data-copy><i class="ph ph-copy" aria-hidden="true"></i><span>Copy install command</span></button>
+        </div>
+        <p class="status" role="status" aria-live="polite"></p>
+        <p class="proof"><span><i class="ph ph-seal-check" aria-hidden="true"></i>Free and open source</span><span><i class="ph ph-apple-logo" aria-hidden="true"></i>macOS 14 or later</span><span><i class="ph ph-cpu" aria-hidden="true"></i>Apple silicon and Intel</span></p>
+      </div>
+
+      <div class="demo">
+        <p class="sr">Animated demo of Deft. Holding Control, Option and Command shows a tilted keyboard with an app on each key. Pressing S brings the browser forward, T brings Terminal forward, and pressing the key of the app already in front hides it.</p>
+        <div class="stage" aria-hidden="true">
+          <div class="menubar"><b id="front-name">Mail</b><span>File</span><span>Edit</span><span>View</span><span>Window</span><div class="grow"></div><i class="ph ph-keyboard deft"></i><b>9:41</b></div>
+          <div class="ov"><div class="board"></div><div class="combo">⌃⌥⌘</div></div>
+        </div>
+        <div class="hud">
+          <div class="keys" aria-hidden="true"><span class="key" data-mod="ctrl">⌃</span><span class="key" data-mod="alt">⌥</span><span class="key" data-mod="cmd">⌘</span><span class="plus">+</span><span class="key dim" id="hud-key">&nbsp;</span></div>
+          <div class="controls" role="group" aria-label="Demo steps">
+            <button class="ctl" id="prev" aria-label="Previous step"><i class="ph ph-caret-left" aria-hidden="true"></i></button>
+            <button class="ctl" id="play" aria-label="Pause"><i class="ph ph-pause" aria-hidden="true"></i></button>
+            <button class="ctl" id="next" aria-label="Next step"><i class="ph ph-caret-right" aria-hidden="true"></i></button>
+            <div class="dots"></div>
+          </div>
+        </div>
+        <p class="caption" id="caption"></p>
+        <p class="hint"><span class="mouse">Step through it with the arrows, or hold ⌥ Option and press S, T, M, N or J to try it yourself. The page uses ⌥ alone so your browser shortcuts stay safe.</span><span class="touch">Step through it with the arrows, or tap the desktop and then a key to try it yourself.</span></p>
+      </div>
+    </div>
+  </header>
+
+  <section aria-labelledby="compare-title">
+    <div class="wrap reveal">
+      <p class="eyebrow">Why not ⌘Tab?</p>
+      <h2 id="compare-title">⌘Tab changes its order every time you use it</h2>
+      <p class="lead">It sorts apps by when you last used them, so Mail might be one press away in the morning and six by lunch. Spotlight is steadier, but you type a name and wait for results every time. Deft puts Mail on M and leaves it there.</p>
+      <div class="compare">
+        <div class="card">
+          <div class="keys"><span class="key">⌘</span><span class="plus">+</span><span class="key">⇥</span><span class="key">⇥</span><span class="key">⇥</span><span class="plus">…</span></div>
+          <h3>⌘Tab</h3>
+          <p>One to nine presses to reach Mail, depending on what you opened last.</p>
+        </div>
+        <div class="card">
+          <div class="keys"><span class="key">⌘</span><span class="key">Space</span><span class="key dim">M</span><span class="key dim">A</span><span class="key dim">I</span><span class="key dim">↩</span></div>
+          <h3>Spotlight</h3>
+          <p>Five keys, plus a glance at the results before you press Return.</p>
+        </div>
+        <div class="card deft">
+          <div class="keys"><span class="key">⌃</span><span class="key">⌥</span><span class="key">⌘</span><span class="plus">+</span><span class="key">M</span></div>
+          <h3>Deft</h3>
+          <p>One chord, and it's the same chord every time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="benefits-title">
+    <div class="wrap reveal">
+      <p class="eyebrow">What it does</p>
+      <h2 id="benefits-title">Nothing on screen until you hold ⌃⌥⌘</h2>
+      <div class="grid">
+        <div class="card"><i class="ph ph-keyboard" aria-hidden="true"></i><h3>A fixed key for every app</h3><p>Safari stays on S and Mail stays on M. After a few days you stop looking down.</p></div>
+        <div class="card"><i class="ph ph-lightning" aria-hidden="true"></i><h3>About 30 ms to switch</h3><p>That's how long an app that's already open takes to come forward. Launching one from scratch takes about 220 ms, and most of that is macOS starting it.</p></div>
+        <div class="card"><i class="ph ph-eye" aria-hidden="true"></i><h3>Hold to see the map</h3><p>Keep ⌃⌥⌘ down for 300 ms and your keyboard appears with every app on it. It goes away when you let go.</p></div>
+        <div class="card"><i class="ph ph-terminal-window" aria-hidden="true"></i><h3>Websites, folders and scripts</h3><p>A key can open a URL or a folder, or run a shell command. It doesn't have to be an app.</p></div>
+        <div class="card"><i class="ph ph-globe-simple" aria-hidden="true"></i><h3>Works with your layout and Hyper key</h3><p>Keys follow their physical position and show your layout's letters, so AZERTY works. So do Hyper keys and Karabiner.</p></div>
+        <div class="card"><i class="ph ph-arrows-in-simple" aria-hidden="true"></i><h3>Press again to hide</h3><p>If the app is already in front, the same key hides it, so one key shows and hides a window.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tagline" aria-label="Tagline">
+    <div class="wrap">
+      <p><span class="line" data-words>You find the S key without looking.</span><span class="line" data-words>Give it a week and you'll find Safari the same way.</span></p>
+    </div>
+  </section>
+
+  <section id="how" aria-labelledby="how-title">
+    <div class="wrap reveal">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title">Setup takes a couple of minutes</h2>
+      <div class="steps">
+        <div class="card"><h3>Install</h3><p>Run the Homebrew command, open Deft, and allow Accessibility when macOS asks.</p></div>
+        <div class="card"><h3>Assign</h3><p>Open Settings from the menu bar, click a key, and pick an app, folder, URL or shell command.</p></div>
+        <div class="card"><h3>Press</h3><p>Hold ⌃⌥⌘ and press the key. Hold the combo on its own to see the whole map.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="open-title">
+    <div class="wrap reveal">
+      <p class="eyebrow">Open source</p>
+      <h2 id="open-title">Small enough to read in an afternoon</h2>
+      <p class="lead">Deft needs Accessibility access to see your shortcut. That's a lot to ask from an app you found five minutes ago, so here's what it does with it. The code is on GitHub if you'd rather check yourself.</p>
+      <div class="stats">
+        <div class="stat"><strong>&lt;600</strong><span>lines of Swift</span></div>
+        <div class="stat"><strong>0</strong><span>network requests</span></div>
+        <div class="stat"><strong>1</strong><span>keyboard event tap</span></div>
+        <div class="stat"><strong>MIT</strong><span>license</span></div>
+      </div>
+      <figure class="real">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="overlay-dark.png">
+          <img src="overlay-light.png" width="1600" height="690" loading="lazy" alt="Screenshot of the real Deft overlay: a tilted keyboard with Safari on S, Finder on F, Music on J, Mail on M and other apps on their keys">
+        </picture>
+        <figcaption>The real overlay, captured on macOS 26.</figcaption>
+      </figure>
+      <p style="margin-top: 32px"><a class="btn" href="https://github.com/hugo-clemente/deft"><i class="ph ph-github-logo" aria-hidden="true"></i>Read the source</a></p>
+    </div>
+  </section>
+
+  <section id="faq" aria-labelledby="faq-title">
+    <div class="wrap reveal">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Questions before you install</h2>
+      <div class="faq">
+        <details><summary>Why does Deft need Accessibility access?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>macOS won't let an app see keys pressed in other apps unless you allow Accessibility. Deft uses it to spot your shortcut. It doesn't log keys and makes no network requests.</p></details>
+        <details><summary>macOS says it can't verify the developer. Is Deft safe?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>macOS blocks the first launch because Deft isn't notarized by Apple yet. Go to System Settings, then Privacy &amp; Security, and click Open Anyway. The source code and the workflow that builds each release are both public.</p></details>
+        <details><summary>Why does Homebrew ask me to trust the tap?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Homebrew only loads casks from taps outside its own once you trust them. <code>brew trust --cask hugo-clemente/tap/deft</code> trusts this one cask and nothing else in the tap.</p></details>
+        <details><summary>Does it work with my keyboard layout?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Yes. Deft matches keys by physical position and labels them with your current layout, so AZERTY and QWERTZ users see their own letters.</p></details>
+        <details><summary>Can I use a Hyper key or Karabiner?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Yes. Pick any mix of ⌃ ⌥ ⇧ ⌘ in Settings. Deft ignores Shift unless it's part of your combo, so a Karabiner Hyper key works without extra setup.</p></details>
+        <details><summary>What if the app is already open?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Deft brings it forward. If it's already in front, the same key hides it.</p></details>
+        <details><summary>Can a key open a website or a folder?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Yes. A key can launch an app, open a URL or folder, or run a shell command.</p></details>
+        <details><summary>Which Macs does it run on?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Any Mac on macOS 14 Sonoma or later, Apple silicon or Intel. On macOS 26 the overlay uses Liquid Glass.</p></details>
+        <details><summary>Will it slow my Mac down?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>No. Deft waits on one keyboard event tap and does nothing until you press your combo. It doesn't poll or run anything in the background.</p></details>
+        <details><summary>How do I update?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Run <code>brew upgrade --cask --greedy deft</code>. Deft isn't notarized yet, so macOS asks for Accessibility again after each update.</p></details>
+        <details><summary>How do I uninstall it?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Run <code>brew uninstall --cask --zap deft</code>. That removes the app and its settings.</p></details>
+        <details><summary>Is it really free?<i class="ph ph-plus" aria-hidden="true"></i></summary><p>Yes. It's MIT licensed, and there's no account or paid version.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" id="install" aria-labelledby="install-title">
+    <div class="wrap reveal">
+      <h2 id="install-title">Try it for a week</h2>
+      <p class="lead">It's free and there's no account. If it isn't for you, one brew command removes it.</p>
+      <div class="install">
+        <div class="cmd">
+          <code><span>brew tap hugo-clemente/tap</span><span>brew trust --cask hugo-clemente/tap/deft</span><span>brew install --cask deft</span></code>
+          <button class="btn" data-copy><i class="ph ph-copy" aria-hidden="true"></i><span>Copy install command</span></button>
+        </div>
+        <p class="status" role="status" aria-live="polite"></p>
+        <p class="proof"><a class="link" href="https://github.com/hugo-clemente/deft/releases/latest">Or download Deft.zip from GitHub Releases</a></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="icon.png" alt="">Deft</a>
+    <nav aria-label="Footer">
+      <a class="link" href="https://github.com/hugo-clemente/deft">GitHub</a>
+      <a class="link" href="https://github.com/hugo-clemente/deft/releases">Releases</a>
+      <a class="link" href="https://github.com/hugo-clemente/deft/blob/main/LICENSE">License</a>
+      <a class="link" href="#privacy">Privacy</a>
+    </nav>
+    <p id="privacy">Deft collects no data and makes no network requests. This site doesn't set cookies or run analytics.</p>
+  </div>
+</footer>
+
+<script>
+  document.documentElement.classList.add("js");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Copy the install command; the status line reports success or what to do instead.
+  const command = "brew tap hugo-clemente/tap && brew trust --cask hugo-clemente/tap/deft && brew install --cask deft";
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    const label = button.querySelector("span");
+    const status = button.closest(".install").querySelector(".status");
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(command);
+        label.textContent = "Copied";
+        status.textContent = "Paste it in Terminal to install Deft.";
+        setTimeout(() => { label.textContent = "Copy install command"; status.textContent = ""; }, 2400);
+      } catch {
+        status.textContent = "Copy failed. Select the command and press ⌘C.";
+      }
+    });
+  });
+
+  // ---- Live demo: the same rules as the app, played on a fake desktop ----
+  const stage = document.querySelector(".stage");
+  const overlay = stage.querySelector(".ov");
+  const caption = document.getElementById("caption");
+  const hudKey = document.getElementById("hud-key");
+  const rows = ["1234567890", "QWERTYUIOP", "ASDFGHJKL;", "ZXCVBNM,./"];
+  const codeOf = (k) => /\d/.test(k) ? `Digit${k}` : /[A-Z]/.test(k) ? `Key${k}` : { ";": "Semicolon", ",": "Comma", ".": "Period", "/": "Slash" }[k];
+  const apps = {
+    1: { name: "Settings", c: "#8e8e93", i: "gear-six" },
+    E: { name: "Messages", c: "#34c759", i: "chat-circle" },
+    R: { name: "Reminders", c: "#ff9500", i: "check-square" },
+    T: { name: "Terminal", c: "#1d1d1f", i: "terminal" },
+    P: { name: "Photos", c: "#ff9f0a", i: "image" },
+    S: { name: "Browser", c: "#0a84ff", i: "compass" },
+    F: { name: "Files", c: "#1e9bf0", i: "folder-simple" },
+    G: { name: "GitHub", c: "#24292f", i: "github-logo", link: "S" },
+    J: { name: "Music", c: "#fa2d48", i: "music-notes" },
+    K: { name: "Maps", c: "#30b0c7", i: "map-trifold" },
+    C: { name: "Calendar", c: "#ff3b30", i: "calendar-blank" },
+    N: { name: "Notes", c: "#ffcc00", i: "note-pencil", fg: "#3a3000" },
+    M: { name: "Mail", c: "#1e6ff1", i: "envelope-simple" },
+  };
+  const icon = (a, big) => `<span class="ico${big ? " big" : ""}" style="--c:${a.c};${a.fg ? `--fg:${a.fg}` : ""}"><i class="ph-fill ph-${a.i}"></i></span>`;
+
+  // Keyboard, built the way KeyboardGrid lays it out in the app.
+  const keys = {};
+  overlay.querySelector(".board").innerHTML = rows.map((row) => `<div class="kr">${[...row].map((k) => {
+    const a = apps[k];
+    return `<div class="kc${a ? " on" : ""}" data-k="${k}"><span class="lbl">${k}</span>${a ? icon(a) : ""}${a?.link ? '<i class="ph ph-arrow-up-right ext"></i>' : ""}<span class="dot"></span>${k === "F" || k === "J" ? '<span class="bump"></span>' : ""}</div>`;
+  }).join("")}</div>`).join("");
+  overlay.querySelectorAll(".kc").forEach((el) => { keys[el.dataset.k] = el; });
+  // Labels follow the visitor's layout where the browser can tell us (Chromium), like the app does.
+  navigator.keyboard?.getLayoutMap?.().then((map) => {
+    Object.entries(keys).forEach(([k, el]) => { const c = map.get(codeOf(k)); if (c && !/\d/.test(k)) el.querySelector(".lbl").textContent = c.toUpperCase(); });
+  }).catch(() => {});
+  const byCode = Object.fromEntries(Object.keys(keys).map((k) => [codeOf(k), k]));
+
+  // Fake app windows.
+  const mail = [["Maya Lindqvist", "Offsite agenda, third draft"], ["Tomás Herrera", "Invoice 2417 is paid"], ["Ines Okafor", "Photos from Saturday"], ["Priya Raman", "Can we move Thursday to 3?"]];
+  const bodies = {
+    S: () => `<div class="url">github.com/hugo-clemente/deft</div><div class="blk" style="--c:${apps.S.c}"></div><div class="ln"></div><div class="ln short"></div>`,
+    M: () => mail.map(([who, what]) => `<div class="mail"><b>${who}</b><span>${what}</span></div>`).join(""),
+    T: () => `<pre>$ brew tap hugo-clemente/tap\n$ brew install --cask deft\n==> Downloading Deft.zip\n==> Installing Cask deft\n🍺  deft was successfully installed!\n$ ▍</pre>`,
+    N: () => `<div class="notes">${["Groceries", "Flat viewing, Thu 18:30", "Books Ines recommended", "Shortcuts to learn"].map((n) => `<div>${n}</div>`).join("")}</div>`,
+    J: () => `<div class="albums">${["#fa2d48", "#5e5ce6", "#ff9f0a", "#30b0c7", "#34c759", "#bf5af2"].map((c) => `<i style="background:${c}"></i>`).join("")}</div>`,
+  };
+  const windows = {};
+  let z = 1, front = null;
+  const order = Object.keys(apps);
+  function windowFor(k) {
+    if (windows[k]) return windows[k];
+    const a = apps[k], i = order.indexOf(k) % 5, el = document.createElement("div");
+    el.className = `win gone${k === "T" ? " term" : ""}`;
+    el.style.left = `${6 + i * 8}%`;
+    el.style.top = `${14 + i * 5}%`;
+    el.innerHTML = `<div class="bar"><i></i><i></i><i></i><b>${a.name}</b></div><div class="body">${(bodies[k] || (() => `<div class="gen">${icon(a, true)}<div class="ln" style="width:60%"></div></div>`))()}</div>`;
+    stage.insertBefore(el, overlay);
+    return (windows[k] = el);
+  }
+  function setFront(k) {
+    Object.values(windows).forEach((w) => w.classList.remove("front"));
+    front = k;
+    if (k) windows[k].classList.add("front");
+    document.getElementById("front-name").textContent = k ? apps[k].name : "Desktop";
+  }
+  // Target.run(): hide the app if it's in front, otherwise bring it forward (launching it if needed).
+  function run(k) {
+    const a = apps[k];
+    if (!a) return;
+    if (a.link) return run(a.link);
+    const win = windowFor(k);
+    keys[k].classList.add("run");
+    if (front === k) {
+      win.classList.add("gone");
+      const next = Object.entries(windows).filter(([, w]) => !w.classList.contains("gone")).sort((x, y) => y[1].style.zIndex - x[1].style.zIndex)[0];
+      return setFront(next ? next[0] : null);
+    }
+    win.style.zIndex = ++z;
+    void win.offsetWidth; // commit the hidden state first so a new window fades in
+    win.classList.remove("gone");
+    setFront(k);
+  }
+  function press(k, down) {
+    keys[k]?.classList.toggle("down", down);
+    hudKey.textContent = down ? keys[k]?.querySelector(".lbl").textContent ?? k : " ";
+    hudKey.classList.toggle("held", down);
+    hudKey.classList.toggle("dim", !down);
+    if (down) run(k);
+  }
+  const mods = (on, which = ["ctrl", "alt", "cmd"]) => document.querySelectorAll("[data-mod]").forEach((m) => m.classList.toggle("held", on && which.includes(m.dataset.mod)));
+  const show = (on) => overlay.classList.toggle("on", on);
+  const say = (text) => { caption.textContent = text; };
+  const fit = () => overlay.style.setProperty("--s", Math.min(1, (stage.clientWidth * 0.92) / 808));
+  new ResizeObserver(fit).observe(stage);
+
+  function reset() { Object.values(keys).forEach((el) => el.classList.remove("down")); press("", false); mods(false); show(false); }
+  // Starting desktop: Notes, the browser and Mail are running, Mail is in front.
+  function restore() {
+    Object.keys(windows).forEach((k) => { windows[k].remove(); delete windows[k]; });
+    Object.values(keys).forEach((el) => el.classList.remove("run"));
+    z = 1; front = null;
+    ["N", "S", "M"].forEach(run);
+    reset();
+  }
+
+  // The demo is a list of steps. Jumping to step i restores the starting desktop, replays steps
+  // before i instantly, then plays step i. Bumping `token` cancels whatever is playing.
+  let token = 0, instant = false, current = 0, done = false, autoplay = !reduceMotion, visible = false;
+  const wait = (ms, t) => new Promise((ok, stop) => {
+    if (instant) return t === token ? ok() : stop();
+    setTimeout(() => (t === token ? ok() : stop()), ms);
+  });
+  async function tap(k, t) { press(k, true); await wait(400, t); press(k, false); }
+  const steps = [
+    { text: "Hold ⌃⌥⌘. After 300 ms your keyboard appears, with an app on each key.", act: async (t) => { mods(true); await wait(300, t); show(true); } },
+    { text: "Press S. The browser comes forward.", act: (t) => tap("S", t) },
+    { text: "Press T. Terminal isn't running yet, so Deft launches it.", act: (t) => tap("T", t) },
+    { text: "Let go of ⌃⌥⌘ and the keyboard goes away.", act: async () => { mods(false); show(false); } },
+    { text: "A quick ⌃⌥⌘ M, without waiting. Mail comes forward and the keyboard never shows.", act: async (t) => { mods(true); await wait(150, t); await tap("M", t); await wait(300, t); mods(false); } },
+    { text: "Mail is already in front, so ⌃⌥⌘ M hides it.", act: async (t) => { mods(true); await wait(300, t); show(true); await wait(900, t); await tap("M", t); await wait(900, t); mods(false); show(false); } },
+  ];
+  const dots = document.querySelector(".dots");
+  const playButton = document.getElementById("play");
+  dots.innerHTML = steps.map((_, i) => `<button aria-label="Step ${i + 1}"></button>`).join("");
+  function render() {
+    dots.querySelectorAll("button").forEach((b, i) => (i === current ? b.setAttribute("aria-current", "step") : b.removeAttribute("aria-current")));
+    caption.innerHTML = `<span>${current + 1} of ${steps.length}</span>${steps[current].text}`;
+    caption.setAttribute("aria-live", autoplay ? "off" : "polite");
+    playButton.setAttribute("aria-label", autoplay ? "Pause" : "Play");
+    playButton.innerHTML = `<i class="ph ph-${autoplay ? "pause" : "play"}" aria-hidden="true"></i>`;
+  }
+  async function goTo(i) {
+    const t = ++token;
+    current = (i + steps.length) % steps.length;
+    done = false;
+    stage.classList.add("instant");
+    restore();
+    instant = true;
+    try { for (let j = 0; j < current; j++) await steps[j].act(t); } catch { return; } finally { instant = false; }
+    void stage.offsetWidth;
+    stage.classList.remove("instant");
+    render();
+    try {
+      await wait(1200, t); // time to read the caption before it happens
+      await steps[current].act(t);
+      done = true;
+      if (autoplay) { await wait(3000, t); goTo(current + 1); }
+    } catch { /* cancelled */ }
+  }
+  // Manual stepping pauses autoplay; pausing lets the current step finish.
+  const stepTo = (i) => { autoplay = false; goTo(i); };
+  document.getElementById("prev").addEventListener("click", () => stepTo(current - 1));
+  document.getElementById("next").addEventListener("click", () => stepTo(current + 1));
+  dots.querySelectorAll("button").forEach((b, i) => b.addEventListener("click", () => stepTo(i)));
+  playButton.addEventListener("click", () => {
+    autoplay = !autoplay;
+    render();
+    if (autoplay) goTo(done ? current + 1 : current);
+  });
+  restore();
+  render();
+  function takeOver() { token++; autoplay = false; reset(); render(); }
+  new IntersectionObserver(([e]) => {
+    if (e.isIntersecting === visible) return;
+    visible = e.isIntersecting;
+    if (!visible) token++;
+    else goTo(current);
+  }).observe(stage);
+
+  // Visitors drive it with ⌥ held, matched on physical keys (event.code) like the app's keycodes.
+  let pending;
+  addEventListener("keydown", (e) => {
+    if (e.key === "Alt") {
+      if (e.repeat) return;
+      takeOver(); mods(true, ["alt"]); say("Your turn: keep ⌥ down and press S, T, M, N or J.");
+      pending = setTimeout(() => show(true), 300);
+      return;
+    }
+    const k = byCode[e.code];
+    if (!k || !e.altKey || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    clearTimeout(pending); // any key while holding means "no overlay", same as the app
+    if (!e.repeat) { press(k, true); say(apps[k] ? `${k}: ${apps[k].name}` : `${k} has no app`); }
+  });
+  addEventListener("keyup", (e) => {
+    const k = byCode[e.code];
+    if (k) keys[k].classList.remove("down");
+    if (e.key === "Alt") { clearTimeout(pending); show(false); mods(false); press("", false); }
+  });
+  addEventListener("blur", () => { clearTimeout(pending); show(false); mods(false); });
+
+  // Touch and mouse: tap the desktop to show the keyboard, tap a key to run it.
+  stage.addEventListener("pointerdown", (e) => {
+    const key = e.target.closest(".kc");
+    const open = overlay.classList.contains("on");
+    takeOver();
+    if (!open) { show(true); mods(true); say("Your turn: tap a key."); }
+    else if (key) {
+      show(true); mods(true); press(key.dataset.k, true);
+      const a = apps[key.dataset.k];
+      say(a ? `${key.dataset.k}: ${a.name}` : `${key.dataset.k} has no app`);
+      setTimeout(() => keys[key.dataset.k].classList.remove("down"), 400);
+    }
+  });
+
+  // ---- Page ----
+  // Sections rise into place once.
+  const reveal = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add("in"); reveal.unobserve(e.target); }
+  }), { rootMargin: "0px 0px -10% 0px" });
+  document.querySelectorAll(".reveal").forEach((el) => reveal.observe(el));
+
+  // Tagline words light up in reading order as they cross 60% of the viewport.
+  document.querySelectorAll("[data-words]").forEach((line) => {
+    line.innerHTML = line.textContent.split(" ").map((w) => `<span class="w">${w}</span>`).join(" ");
+  });
+  const words = [...document.querySelectorAll(".tagline .w")];
+  let lit = 0, target = 0, lighting = false;
+  const step = () => {
+    if (lit >= target) { lighting = false; return; }
+    words[lit++].classList.add("lit");
+    setTimeout(step, 60);
+  };
+  const wordObserver = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      target = Math.max(target, words.indexOf(e.target) + 1);
+      wordObserver.unobserve(e.target);
+    });
+    if (!lighting) { lighting = true; step(); }
+  }, { rootMargin: "0px 0px -40% 0px" });
+  words.forEach((w) => wordObserver.observe(w));
+
+  // Mobile menu: full height panel, links arrive one after another (60 ms apart, 400 ms max).
+  const toggle = document.querySelector(".toggle");
+  const menu = document.getElementById("menu");
+  const setMenu = (open) => {
+    toggle.setAttribute("aria-expanded", open);
+    menu.classList.toggle("open", open);
+    menu.querySelectorAll("a").forEach((a, i) => { a.style.transitionDelay = open ? `${Math.min(i * 60, 400)}ms` : "0ms"; });
+  };
+  toggle.addEventListener("click", () => setMenu(toggle.getAttribute("aria-expanded") !== "true"));
+  menu.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => setMenu(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+
+  // Mark the nav link of the section in view.
+  const navLinks = document.querySelectorAll('.nav .links a[href^="#"]');
+  const sectionObserver = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (!e.isIntersecting) return;
+    navLinks.forEach((a) => a.setAttribute("aria-current", a.getAttribute("href") === `#${e.target.id}`));
+  }), { rootMargin: "-50% 0px -50% 0px" });
+  document.querySelectorAll("#how, #faq, #top").forEach((s) => sectionObserver.observe(s));
+
+  // FAQ structured data, built from the FAQ itself so the two never drift.
+  const faq = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: [...document.querySelectorAll(".faq details")].map((d) => ({
+    "@type": "Question", name: d.querySelector("summary").textContent.trim(),
+    acceptedAnswer: { "@type": "Answer", text: d.querySelector("p").textContent.trim() },
+  })) };
+  const ld = document.createElement("script");
+  ld.type = "application/ld+json";
+  ld.textContent = JSON.stringify(faq);
+  document.head.append(ld);
+</script>
+</body>
+</html>

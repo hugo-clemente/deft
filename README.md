@@ -19,8 +19,11 @@ Hold a modifier combo, see your keyboard as an app launcher, press a key.
 
 ```sh
 brew tap hugo-clemente/tap
+brew trust --cask hugo-clemente/tap/deft
 brew install --cask deft
 ```
+
+Homebrew only loads casks from third party taps you trust. The `brew trust` line trusts this one cask, nothing else in the tap.
 
 Or download `Deft.zip` from [Releases](https://github.com/hugo-clemente/deft/releases).
 
