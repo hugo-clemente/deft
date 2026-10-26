@@ -1,0 +1,23 @@
+README.md
+  s_58976c9af4f40c::t_d4beb35e8366b7 22,26-27
+docs/404.html
+  s_58976c9af4f40c::t_a55732f7f2e484 1-33
+docs/index.html
+  s_58976c9af4f40c::t_a18b2ce62c50da 1-787
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b2bea2cd3e9b21d312e77506d26875a9faa901a4",
+  "prompts": {},
+  "sessions": {
+    "s_58976c9af4f40c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "716e6f49-b677-45bc-a234-01ae1e6be2ce",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Hugo CLEMENTE <20091960+hugo-clemente@users.noreply.github.com>"
+    }
+  }
+}
